@@ -1,5 +1,6 @@
 import socket
 import select
+import json
 
 HEADER_LENGTH = 10
 
@@ -18,8 +19,10 @@ sockets_list = [server_socket]
 clients = {}
 
 print(f'Listening for connections on {IP}:{PORT}...')
-def receive_message(client_socket):
+commandCode = []
 
+
+def receive_message(client_socket):
     try:
 
         message_header = client_socket.recv(HEADER_LENGTH)
@@ -34,10 +37,10 @@ def receive_message(client_socket):
     except:
         return False
 
+
 while True:
 
     read_sockets, _, exception_sockets = select.select(sockets_list, [], sockets_list)
-
     for notified_socket in read_sockets:
 
         if notified_socket == server_socket:
@@ -46,21 +49,29 @@ while True:
 
             user = receive_message(client_socket)
 
-            if user is False:
-                continue
-
-            sockets_list.append(client_socket)
-
-            clients[client_socket] = user
-
-            print('Accepted new connection from {}:{}, username: {}'.format(*client_address, user['data'].decode('utf-8')))
-
+            if user["command"] == "register":
+                sockets_list.append(client_socket)
+                if user in clients:  # user already exists in the server
+                    commandCode.append({"command": "ret_code", "code_no": "502"})
+                    client_socket.send(commandCode)
+                else:
+                    clients[client_socket] = user # command has been accepted and user is registered
+                    commandCode.append({"command": "ret_code", "code_no": "401"})
+                    client_socket.send(commandCode)
+                    print('Accepted new connection from {}:{}, username: {}'.format(*client_address,
+                                                                                    user['username'].decode('utf-8')))
+            elif user["command"] != "deregister" and user["command"] != "msg":
+                commandCode.append({"command": "ret_code", "code_no": "301"}) #unknown command
+                client_socket.send(commandCode)
+                print("Unknown command received")
         else:
 
             message = receive_message(notified_socket)
 
-            if message is False:
-                print('Closed connection from: {}'.format(clients[notified_socket]['data'].decode('utf-8')))
+            if message is False or message["command"] == "deregister": #receive deregister command
+                print('Closed connection from: {}'.format(clients[notified_socket]['username'].decode('utf-8')))
+                commandCode.append({"command": "ret_code", "code_no": "401"})
+                notified_socket.send(commandCode)
 
                 sockets_list.remove(notified_socket)
 
@@ -68,18 +79,16 @@ while True:
 
                 continue
 
-            user = clients[notified_socket]
+            elif message["command"] == "msg": #receive msg command
+                user = clients[notified_socket]
+                print(f'Received message from {message["username"].decode("utf-8")}: {message["message"].decode("utf-8")}')
+                commandCode.append({"command": "ret_code", "code_no": "401"})
+                notified_socket.send(commandCode)
 
-            print(f'Received message from {user["data"].decode("utf-8")}: {message["data"].decode("utf-8")}')
-
-            for client_socket in clients:
-
-                if client_socket != notified_socket:
-
-                    client_socket.send(user['header'] + user['data'] + message['header'] + message['data'])
-
+            elif message["command"] != "register":
+                commandCode.append({"command": "ret_code", "code_no": "301"})  # unknown command
+                client_socket.send(commandCode)
     for notified_socket in exception_sockets:
-
         sockets_list.remove(notified_socket)
 
         del clients[notified_socket]
