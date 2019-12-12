@@ -25,9 +25,25 @@ def receive_message(client_socket):
         if not len(message_header):
             return False
         message_length = int(message_header.decode('utf-8').strip())
-        return {'header': message_header, 'data': client_socket.recv(message_length)}
+        return {'header': message_header, 'data': client_socket.recv(message_length).decode('utf-8')}
     except:
         return False
+
+def return_message(jsonDICT):
+    jsonDICT =  json.loads(jsonDICT)
+    ret_dict = {
+        "command":"ret_code",
+        "code_no":301,
+    }
+    if (jsonDICT["command"] == "register" and jsonDICT["username"]):
+        ret_dict["code_no"] = 401
+    if (jsonDICT["command"] == "deregister"):
+        pass
+    if (jsonDICT["command"] == "msg"):
+        if (jsonDICT["message"]):
+            if (jsonDICT["username"])
+
+    return ret_code
 
 while True:
 
@@ -46,14 +62,14 @@ while True:
 
             clients[client_socket] = user
 
-            print('Accepted new connection from {}:{}, username: {}'.format(*client_address, user['data'].decode('utf-8')))
-            print(json.loads(user["data"].decode("utf-8"))["message"])
+            print('Accepted new connection from {}:{}, username: {}'.format(*client_address, user['data']))
+            return_messsage(user['data'])
 
         else:
             message = receive_message(notified_socket)
 
             if message is False:
-                print('Closed connection from: {}'.format(clients[notified_socket]['data'].decode('utf-8')))
+                print('Closed connection from: {}'.format(clients[notified_socket]['data']))
                 sockets_list.remove(notified_socket)
                 del clients[notified_socket]
                 continue
