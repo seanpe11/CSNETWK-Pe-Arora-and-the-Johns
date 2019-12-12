@@ -21,19 +21,28 @@ def return_message(jsonDICT):
         "command":"ret_code",
         "code_no":301,
     }
+
+    try: # makes sure there is command in json file
+        jsonDICT["command"]
+    except:
+        ret_dict["code_no"] = 301
+        return ret_dict
+
     if (jsonDICT["command"] == "register"):
         ret_dict["code_no"] = 201 #missing userparamater
-        if (jsonDICT["username"] != "" and "username" in jsonDICT):
+        if ("username" in jsonDICT and jsonDICT["username"] != ""):
             ret_dict["code_no"] = 401 #user is registered with username
             if (jsonDICT["username"] in registeredUsers):
-                ret_dict["code_no"] = 502
+                ret_dict["code_no"] = 502 #user already exists in server
 
     if (jsonDICT["command"] == "deregister"):
-        ret_dict["code_no"] = 201 #missing userparameter
-        if (jsonDICT["username"] in registeredUsers):
-            ret_dict["code_no"] = 401 # user is deregistered from server
-        else:
-            ret_dict["code_no"] = 501 #user was not found in server, can't deregister
+        try:
+            if (jsonDICT["username"] in registeredUsers):
+                ret_dict["code_no"] = 401 # user is deregistered from server
+            else:
+                ret_dict["code_no"] = 501 # user not registered in first place
+        except:
+            ret_dict["code_no"] = 201 #incomplete params
 
     if (jsonDICT["command"] == "msg"):
         ret_dict["code_no"] = 201 #missing message and username parameter
@@ -71,13 +80,16 @@ while(True):
             bulletinBoard = "Message from {}@{}: {}".format(data["username"], address, data["message"])
 
     elif response["code_no"] == 501:
-        bulletinBoard = "User not registered. Did you register this user?"
+        bulletinBoard = "Bad command from {}. User not registered. Did you register this user?".format(address)
+
+    elif response["code_no"] == 502:
+        bulletinBoard = "Bad command from {}. User already exists. Try again.".format(address)
 
     elif response["code_no"] == 201:
-        bulletinBoard = "Missing parameters. Try again."
+        bulletinBoard = "Bad command from {}. Missing parameters. Try again.".format(address)
 
     else:
-        bulletinBoard = "Unknown command. Try again."
+        bulletinBoard = "Bad command from {}. Unknown command. Try again.".format(address)
 
     print(bulletinBoard)
 
